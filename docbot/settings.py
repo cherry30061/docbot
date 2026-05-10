@@ -11,7 +11,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Security settings
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'fallback-dev-secret-key')
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
-ALLOWED_HOSTS = ['*' , '.pythonanywhere.com', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['*', '.onrender.com', '.pythonanywhere.com', 'localhost', '127.0.0.1']
 
 # Installed apps
 INSTALLED_APPS = [
