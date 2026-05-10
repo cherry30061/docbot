@@ -1,0 +1,245 @@
+
+{% extends 'base.html' %}
+{% block title %}Sign Up - DocBot{% endblock %}
+
+{% block extra_head %}
+<style>
+    .orb { display: none !important; }
+    body {
+        background: #000005 !important;
+        overflow-x: hidden;
+    }
+    body::before {
+        background:
+            radial-gradient(ellipse at top, rgba(255,42,147,0.4) 0%, transparent 60%),
+            radial-gradient(ellipse at bottom, rgba(0,245,255,0.25) 0%, transparent 60%),
+            radial-gradient(circle at 70% 50%, rgba(176,38,255,0.25) 0%, transparent 50%) !important;
+        background-size: 100% 100% !important;
+        animation: none !important;
+    }
+
+    #particle-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+
+    .cyber-grid {
+        position: fixed; bottom: 0; left: 0; right: 0;
+        height: 60vh;
+        background-image:
+            linear-gradient(rgba(255,42,147,0.3) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,42,147,0.3) 1px, transparent 1px);
+        background-size: 50px 50px;
+        transform: perspective(500px) rotateX(60deg);
+        transform-origin: bottom;
+        animation: gridScroll 20s linear infinite;
+        mask-image: linear-gradient(to top, black, transparent);
+        -webkit-mask-image: linear-gradient(to top, black, transparent);
+        z-index: 0; pointer-events: none;
+    }
+    @keyframes gridScroll {
+        from { background-position: 0 0; }
+        to   { background-position: 0 50px; }
+    }
+
+    .aurora {
+        position: fixed; top: -200px; left: 0; right: 0;
+        height: 500px;
+        background: linear-gradient(180deg,
+            transparent,
+            rgba(255,42,147,0.4) 40%,
+            rgba(176,38,255,0.3) 70%,
+            transparent);
+        filter: blur(60px);
+        animation: auroraSwirl 8s ease-in-out infinite alternate;
+        z-index: 0; pointer-events: none;
+    }
+    @keyframes auroraSwirl {
+        0%   { transform: translateX(-50px) scaleX(1); opacity: 0.6; }
+        100% { transform: translateX(50px) scaleX(1.2); opacity: 1; }
+    }
+
+    .floating-shape {
+        position: fixed; z-index: 0; opacity: 0.4; pointer-events: none;
+    }
+    .shape-1 {
+        top: 15%; left: 8%; width: 80px; height: 80px;
+        border: 2px solid var(--neon-cyan); border-radius: 12px;
+        box-shadow: 0 0 40px var(--neon-cyan);
+        animation: shapeFloatSquare 15s ease-in-out infinite;
+    }
+    @keyframes shapeFloatSquare {
+        0%, 100% { transform: rotate(45deg) translateY(0); }
+        50%      { transform: rotate(225deg) translateY(-30px); }
+    }
+    .shape-2 {
+        top: 65%; right: 10%; width: 100px; height: 100px;
+        border: 2px solid var(--neon-purple); border-radius: 50%;
+        box-shadow: 0 0 40px var(--neon-purple);
+        animation: shapeFloatCircle 15s ease-in-out infinite -5s;
+    }
+    @keyframes shapeFloatCircle {
+        0%, 100% { transform: translateY(0) scale(1); }
+        50%      { transform: translateY(-40px) scale(1.2); }
+    }
+
+    .auth-page { z-index: 10; }
+    .auth-card {
+        z-index: 10;
+        box-shadow:
+            0 30px 80px rgba(0,0,0,0.8),
+            0 0 100px rgba(255,42,147,0.4),
+            0 0 200px rgba(176,38,255,0.2),
+            inset 0 1px 0 rgba(255,255,255,0.15) !important;
+    }
+
+    @media (max-width: 768px) {
+        #particle-canvas, .cyber-grid, .floating-shape { display: none; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<canvas id="particle-canvas"></canvas>
+<div class="aurora"></div>
+<div class="cyber-grid"></div>
+<div class="floating-shape shape-1"></div>
+<div class="floating-shape shape-2"></div>
+
+<div class="auth-page">
+    <div class="auth-card auth-card-wide">
+        <div class="auth-header">
+            <div class="auth-icon"><i class="bi bi-person-plus"></i></div>
+            <h2>Create Account</h2>
+            <p>Join DocBot and start exploring documents with AI</p>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label class="form-label"><i class="bi bi-person"></i> Username</label>
+                {{ form.username }}
+                {% if form.username.errors %}<small class="text-danger">{{ form.username.errors.0 }}</small>{% endif %}
+            </div>
+            <div class="mb-3">
+                <label class="form-label"><i class="bi bi-envelope"></i> Email</label>
+                {{ form.email }}
+                {% if form.email.errors %}<small class="text-danger">{{ form.email.errors.0 }}</small>{% endif %}
+            </div>
+            <div class="mb-3">
+                <label class="form-label"><i class="bi bi-lock"></i> Password</label>
+                {{ form.password1 }}
+                {% if form.password1.errors %}<small class="text-danger">{{ form.password1.errors.0 }}</small>{% endif %}
+            </div>
+            <div class="mb-3">
+                <label class="form-label"><i class="bi bi-lock-fill"></i> Confirm Password</label>
+                {{ form.password2 }}
+                {% if form.password2.errors %}<small class="text-danger">{{ form.password2.errors.0 }}</small>{% endif %}
+            </div>
+            <div class="mb-3">
+                <label class="form-label"><i class="bi bi-shield"></i> Account Type</label>
+                {{ form.role }}
+                <small class="d-block mt-1" style="color: var(--text-muted);">Admin can upload/delete docs · User can only ask questions</small>
+            </div>
+            <button type="submit" class="btn btn-primary btn-glow w-100">
+                <i class="bi bi-person-plus"></i> Create Account
+            </button>
+            <p class="text-center mt-3 mb-0" style="color: var(--text-muted);">
+                Already have an account? <a href="{% url 'login' %}" class="auth-link">Sign In</a>
+            </p>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function() {
+    const canvas = document.getElementById('particle-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+    const mouse = { x: null, y: null, radius: 150 };
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', () => { resize(); init(); });
+
+    window.addEventListener('mousemove', e => { mouse.x = e.x; mouse.y = e.y; });
+    window.addEventListener('mouseout', () => { mouse.x = null; mouse.y = null; });
+
+    const colors = ['#ff2a93', '#b026ff', '#00f5ff', '#00ff88'];
+
+    class Particle {
+        constructor() {
+            this.x = Math.random() * canvas.width;
+            this.y = Math.random() * canvas.height;
+            this.size = Math.random() * 2.5 + 1;
+            this.speedX = (Math.random() - 0.5) * 0.6;
+            this.speedY = (Math.random() - 0.5) * 0.6;
+            this.color = colors[Math.floor(Math.random() * colors.length)];
+        }
+        update() {
+            if (mouse.x !== null) {
+                const dx = mouse.x - this.x;
+                const dy = mouse.y - this.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < mouse.radius) {
+                    const force = (mouse.radius - dist) / mouse.radius;
+                    this.x -= (dx / dist) * force * 3;
+                    this.y -= (dy / dist) * force * 3;
+                }
+            }
+            this.x += this.speedX;
+            this.y += this.speedY;
+            if (this.x < 0 || this.x > canvas.width) this.speedX *= -1;
+            if (this.y < 0 || this.y > canvas.height) this.speedY *= -1;
+        }
+        draw() {
+            ctx.fillStyle = this.color;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = this.color;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    function init() {
+        particles = [];
+        const count = Math.floor((canvas.width * canvas.height) / 12000);
+        for (let i = 0; i < count; i++) particles.push(new Particle());
+    }
+
+    function connect() {
+        ctx.shadowBlur = 0;
+        for (let a = 0; a < particles.length; a++) {
+            for (let b = a + 1; b < particles.length; b++) {
+                const dx = particles[a].x - particles[b].x;
+                const dy = particles[a].y - particles[b].y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < 140) {
+                    const opacity = (1 - dist/140) * 0.4;
+                    ctx.strokeStyle = `rgba(255, 42, 147, ${opacity})`;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(particles[a].x, particles[a].y);
+                    ctx.lineTo(particles[b].x, particles[b].y);
+                    ctx.stroke();
+                }
+            }
+        }
+    }
+
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(p => { p.update(); p.draw(); });
+        connect();
+        requestAnimationFrame(animate);
+    }
+
+    init();
+    animate();
+})();
+</script>
+{% endblock %}

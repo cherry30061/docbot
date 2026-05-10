@@ -1,0 +1,190 @@
+
+{% extends 'base.html' %}
+{% block title %}Chat - DocBot{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="row">
+        <div class="col-lg-3 mb-3">
+            <div class="card chat-sidebar">
+                <div class="card-header">
+                    <h5><i class="bi bi-folder"></i> Documents <span class="badge bg-primary">{{ documents|length }}</span></h5>
+                </div>
+                <div class="card-body p-2">
+                    {% if documents %}
+                    <ul class="list-group list-group-flush doc-list">
+                        {% for doc in documents %}
+                        <li class="list-group-item doc-item">
+                            <i class="bi bi-file-earmark-text"></i>
+                            <div>
+                                <div class="doc-title">{{ doc.title }}</div>
+                                <small class="text-muted">{{ doc.file_type|upper }} · {{ doc.file_size_kb }} KB</small>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="empty-state-small">
+                        <i class="bi bi-folder-x"></i>
+                        <p>No documents available</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-9">
+            <div class="card chat-card">
+                <div class="card-header chat-header">
+                    <h4><i class="bi bi-chat-square-dots"></i> Ask Anything About Your Documents</h4>
+                    <small class="text-muted">Powered by Groq AI</small>
+                </div>
+                <div class="chat-messages" id="chat-messages">
+                    <div class="welcome-message">
+                        <i class="bi bi-robot welcome-icon"></i>
+                        <h3>Hi {{ user.username }}!</h3>
+                        <p>Ask me anything about the uploaded documents.</p>
+                    </div>
+                </div>
+                <div class="chat-input-area">
+                    <form id="chat-form" class="chat-form" onsubmit="return false;">
+                        {% csrf_token %}
+                        <input type="text" id="question-input" class="form-control chat-input"
+                               placeholder="Type your question here..." autocomplete="off" required>
+                        <button type="button" class="btn btn-primary btn-send" id="send-btn">
+                            <i class="bi bi-send-fill"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const messagesContainer = document.getElementById('chat-messages');
+    const questionInput = document.getElementById('question-input');
+    const sendBtn = document.getElementById('send-btn');
+    const chatForm = document.getElementById('chat-form');
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function formatText(text) {
+        let safe = escapeHtml(text);
+        safe = safe.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        safe = safe.replace(/\n/g, '<br>');
+        return safe;
+    }
+
+    function addMessage(type, text, sources) {
+        sources = sources || [];
+        const welcome = messagesContainer.querySelector('.welcome-message');
+        if (welcome) welcome.remove();
+
+        const message = document.createElement('div');
+        message.className = 'message ' + type + '-message';
+
+        const avatar = document.createElement('div');
+        avatar.className = 'message-avatar';
+        avatar.innerHTML = type === 'user'
+            ? '<i class="bi bi-person"></i>'
+            : '<i class="bi bi-robot"></i>';
+
+        const bubble = document.createElement('div');
+        bubble.className = 'message-bubble';
+        bubble.innerHTML = formatText(text);
+
+        if (sources && sources.length > 0) {
+            const sourcesDiv = document.createElement('div');
+            sourcesDiv.className = 'message-sources';
+            sourcesDiv.innerHTML = '<strong>Sources:</strong> ' +
+                sources.map(s => '<span class="source-tag">' + escapeHtml(s) + '</span>').join('');
+            bubble.appendChild(sourcesDiv);
+        }
+
+        message.appendChild(avatar);
+        message.appendChild(bubble);
+        messagesContainer.appendChild(message);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function showTyping() {
+        const id = 'typing-' + Date.now();
+        const div = document.createElement('div');
+        div.id = id;
+        div.className = 'message bot-message';
+        div.innerHTML =
+            '<div class="message-avatar"><i class="bi bi-robot"></i></div>' +
+            '<div class="message-bubble">' +
+            '<div class="typing-indicator">' +
+            '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>' +
+            '</div></div>';
+        messagesContainer.appendChild(div);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        return id;
+    }
+
+    function removeTyping(id) {
+        const el = document.getElementById(id);
+        if (el) el.remove();
+    }
+
+    async function sendQuestion() {
+        const question = questionInput.value.trim();
+        if (!question) return;
+
+        addMessage('user', question);
+        questionInput.value = '';
+        sendBtn.disabled = true;
+        const typingId = showTyping();
+
+        try {
+            const formData = new FormData();
+            formData.append('question', question);
+            formData.append('csrfmiddlewaretoken', csrfToken);
+
+            const response = await fetch('/ask/', {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': csrfToken }
+            });
+
+            const data = await response.json();
+            removeTyping(typingId);
+
+            if (data.success) {
+                addMessage('bot', data.answer, data.sources);
+            } else {
+                addMessage('bot', 'Error: ' + (data.error || 'Something went wrong.'));
+            }
+        } catch (err) {
+            removeTyping(typingId);
+            addMessage('bot', 'Network error: ' + err.message);
+        } finally {
+            sendBtn.disabled = false;
+            questionInput.focus();
+        }
+    }
+
+    sendBtn.addEventListener('click', sendQuestion);
+
+    questionInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            sendQuestion();
+        }
+    });
+
+    chatForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        return false;
+    });
+})();
+</script>
+{% endblock %}

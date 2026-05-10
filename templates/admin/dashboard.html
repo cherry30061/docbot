@@ -1,0 +1,178 @@
+
+{% extends 'base.html' %}
+{% block title %}Admin Dashboard - DocBot{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="dashboard-header d-flex justify-content-between align-items-center flex-wrap">
+        <div>
+            <h1><i class="bi bi-speedometer2"></i> Admin Dashboard</h1>
+            <p class="text-muted mb-0">Manage your document library</p>
+        </div>
+        <a href="{% url 'chat' %}" class="btn btn-primary btn-glow btn-lg mt-2 mt-md-0">
+            <i class="bi bi-chat-square-dots"></i> Ask Questions
+        </a>
+    </div>
+
+    <div class="row g-3 mb-4 mt-1">
+        <div class="col-md-4">
+            <div class="stat-card stat-blue">
+                <i class="bi bi-files stat-icon"></i>
+                <div>
+                    <h3>{{ documents|length }}</h3>
+                    <p>Total Documents</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card stat-green">
+                <i class="bi bi-check-circle stat-icon"></i>
+                <div>
+                    <h3>{{ documents|length }}</h3>
+                    <p>Ready for Search</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card stat-purple">
+                <i class="bi bi-cpu stat-icon"></i>
+                <div>
+                    <h3>AI</h3>
+                    <p>Powered by Groq</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card upload-card mb-4">
+        <div class="card-header">
+            <h4><i class="bi bi-cloud-upload"></i> Upload New Document</h4>
+        </div>
+        <div class="card-body">
+            <form method="post" action="{% url 'upload_document' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="row g-3">
+                    <div class="col-md-5">
+                        <label class="form-label">Document Title</label>
+                        {{ upload_form.title }}
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label">File (Max 2 MB)</label>
+                        {{ upload_form.file }}
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary btn-glow w-100">
+                            <i class="bi bi-upload"></i> Upload
+                        </button>
+                    </div>
+                </div>
+                <small class="text-muted mt-2 d-block">
+                    <i class="bi bi-info-circle"></i> Supported: PDF, DOCX, XLSX, PPTX, TXT
+                </small>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h4 class="mb-0"><i class="bi bi-folder"></i> Uploaded Documents</h4>
+            <a href="{% url 'chat' %}" class="btn btn-success btn-sm">
+                <i class="bi bi-chat-dots"></i> Ask AI About These Docs
+            </a>
+        </div>
+        <div class="card-body p-0">
+            {% if documents %}
+            <div class="table-responsive">
+                <table class="table table-hover doc-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Type</th>
+                            <th>Size</th>
+                            <th>Uploaded By</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% csrf_token %}
+                        {% for doc in documents %}
+                        <tr id="doc-row-{{ doc.id }}">
+                            <td><strong>{{ doc.title }}</strong></td>
+                            <td><span class="file-badge file-{{ doc.file_type }}">{{ doc.file_type|upper }}</span></td>
+                            <td>{{ doc.file_size_kb }} KB</td>
+                            <td>{{ doc.uploaded_by.username }}</td>
+                            <td>{{ doc.uploaded_at|date:"M d, Y H:i" }}</td>
+                            <td>
+                                {% if doc.is_processed %}
+                                <span class="badge bg-success"><i class="bi bi-check-circle"></i> Ready</span>
+                                {% else %}
+                                <span class="badge bg-warning"><i class="bi bi-hourglass"></i> Pending</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <button type="button" class="btn btn-sm btn-danger delete-doc-btn"
+                                        data-doc-id="{{ doc.id }}"
+                                        data-doc-title="{{ doc.title }}">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="bi bi-folder-x"></i>
+                <h5>No documents uploaded yet</h5>
+                <p class="text-muted">Upload your first document to get started!</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const buttons = document.querySelectorAll('.delete-doc-btn');
+
+    buttons.forEach(function(btn) {
+        btn.addEventListener('click', async function() {
+            const docId = this.dataset.docId;
+            const docTitle = this.dataset.docTitle;
+
+            if (!confirm('Delete "' + docTitle + '"? This cannot be undone.')) return;
+
+            try {
+                const response = await fetch('/delete/' + docId + '/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    const row = document.getElementById('doc-row-' + docId);
+                    if (row) {
+                        row.style.transition = 'opacity 0.4s';
+                        row.style.opacity = '0';
+                        setTimeout(function() {
+                            row.remove();
+                            location.reload();
+                        }, 400);
+                    }
+                } else {
+                    alert('Failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (err) {
+                alert('Network error: ' + err.message);
+            }
+        });
+    });
+})();
+</script>
+{% endblock %}
